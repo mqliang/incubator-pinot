@@ -57,7 +57,7 @@ import static org.testng.Assert.assertTrue;
 
 
 /**
- * Test for {@link SelectionOnlyCombineOperator} and {@link SelectionOrderByCombineOperator}.
+ * Test for {@link SelectionOnlyCombineOperator} and {@link MinMaxSelectionOrderByCombineOperator}.
  */
 public class SelectionCombineOperatorTest {
   private static final File TEMP_DIR = new File(FileUtils.getTempDirectory(), "SelectionCombineEarlyTerminationTest");

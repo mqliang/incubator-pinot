@@ -26,12 +26,14 @@ import java.util.concurrent.Future;
 import java.util.concurrent.Phaser;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicLong;
 import org.apache.pinot.common.exception.QueryException;
 import org.apache.pinot.core.common.Operator;
 import org.apache.pinot.core.operator.BaseOperator;
 import org.apache.pinot.core.operator.blocks.IntermediateResultsBlock;
 import org.apache.pinot.core.query.exception.EarlyTerminationException;
 import org.apache.pinot.core.query.request.context.QueryContext;
+import org.apache.pinot.core.query.request.context.ThreadTimer;
 import org.apache.pinot.core.util.trace.TraceRunnable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,71 +54,58 @@ public abstract class BaseCombineOperator extends BaseOperator<IntermediateResul
   protected final ExecutorService _executorService;
   protected final long _endTimeMs;
 
+  private AtomicLong totalWorkerTime = new AtomicLong(0);
+  private int numOperators;
+  private int numThreads;
+
+  // Use a BlockingQueue to store the per-segment result
+  private  BlockingQueue<IntermediateResultsBlock> blockingQueue;
+  // Use a Phaser to ensure all the Futures are done (not scheduled, finished or interrupted) before the main thread
+  // returns. We need to ensure this because the main thread holds the reference to the segments. If a segment is
+  // deleted/refreshed, the segment will be released after the main thread returns, which would lead to undefined
+  // behavior (even JVM crash) when processing queries against it.
+  private Phaser phaser = new Phaser(1);
+  private Future[] futures;
+
   public BaseCombineOperator(List<Operator> operators, QueryContext queryContext, ExecutorService executorService,
       long endTimeMs) {
     _operators = operators;
     _queryContext = queryContext;
     _executorService = executorService;
     _endTimeMs = endTimeMs;
+
+    numOperators = _operators.size();
+    numThreads = CombineOperatorUtils.getNumThreadsForQuery(numOperators);
+    blockingQueue = new ArrayBlockingQueue<>(numOperators);
+    futures = new Future[numThreads];
   }
 
   @Override
   protected IntermediateResultsBlock getNextBlock() {
-    int numOperators = _operators.size();
-    int numThreads = CombineOperatorUtils.getNumThreadsForQuery(numOperators);
-
-    // Use a BlockingQueue to store the per-segment result
-    BlockingQueue<IntermediateResultsBlock> blockingQueue = new ArrayBlockingQueue<>(numOperators);
-    // Use a Phaser to ensure all the Futures are done (not scheduled, finished or interrupted) before the main thread
-    // returns. We need to ensure this because the main thread holds the reference to the segments. If a segment is
-    // deleted/refreshed, the segment will be released after the main thread returns, which would lead to undefined
-    // behavior (even JVM crash) when processing queries against it.
-    Phaser phaser = new Phaser(1);
-
-    Future[] futures = new Future[numThreads];
     for (int i = 0; i < numThreads; i++) {
       int threadIndex = i;
       futures[i] = _executorService.submit(new TraceRunnable() {
         @Override
         public void runJob() {
-          try {
-            // Register the thread to the phaser
-            // NOTE: If the phaser is terminated (returning negative value) when trying to register the thread, that
-            //       means the query execution has finished, and the main thread has deregistered itself and returned
-            //       the result. Directly return as no execution result will be taken.
-            if (phaser.register() < 0) {
-              return;
-            }
+          ThreadTimer workerTimer = new ThreadTimer();
+          workerTimer.start();
 
-            for (int operatorIndex = threadIndex; operatorIndex < numOperators; operatorIndex += numThreads) {
-              try {
-                IntermediateResultsBlock resultsBlock =
-                    (IntermediateResultsBlock) _operators.get(operatorIndex).nextBlock();
-                if (isQuerySatisfied(resultsBlock)) {
-                  // Query is satisfied, skip processing the remaining segments
-                  blockingQueue.offer(resultsBlock);
-                  return;
-                } else {
-                  blockingQueue.offer(resultsBlock);
-                }
-              } catch (EarlyTerminationException e) {
-                // Early-terminated by interruption (canceled by the main thread)
-                return;
-              } catch (Exception e) {
-                // Caught exception, skip processing the remaining operators
-                LOGGER.error("Caught exception while executing operator of index: {} (query: {})", operatorIndex,
-                    _queryContext, e);
-                blockingQueue.offer(new IntermediateResultsBlock(e));
-                return;
-              }
-            }
-          } finally {
-            phaser.arriveAndDeregister();
-          }
+          do_processBlock(threadIndex);
+
+          totalWorkerTime.addAndGet(workerTimer.getThreadTime());
         }
       });
     }
 
+    IntermediateResultsBlock mergedBlock = do_merge();
+
+    assert mergedBlock != null;
+    mergedBlock.setThreadTime(totalWorkerTime.get());
+    CombineOperatorUtils.setExecutionStatistics(mergedBlock, _operators);
+    return mergedBlock;
+  }
+
+  protected IntermediateResultsBlock do_merge() {
     IntermediateResultsBlock mergedBlock = null;
     try {
       int numBlocksMerged = 0;
@@ -161,9 +150,44 @@ public abstract class BaseCombineOperator extends BaseOperator<IntermediateResul
       // Deregister the main thread and wait for all threads done
       phaser.awaitAdvance(phaser.arriveAndDeregister());
     }
-
-    CombineOperatorUtils.setExecutionStatistics(mergedBlock, _operators);
     return mergedBlock;
+  }
+
+  protected void do_processBlock(int threadIndex) {
+    try {
+      // Register the thread to the phaser
+      // NOTE: If the phaser is terminated (returning negative value) when trying to register the thread, that
+      //       means the query execution has finished, and the main thread has deregistered itself and returned
+      //       the result. Directly return as no execution result will be taken.
+      if (phaser.register() < 0) {
+        return;
+      }
+
+      for (int operatorIndex = threadIndex; operatorIndex < numOperators; operatorIndex += numThreads) {
+        try {
+          IntermediateResultsBlock resultsBlock = (IntermediateResultsBlock) _operators.get(operatorIndex).nextBlock();
+          if (isQuerySatisfied(resultsBlock)) {
+            // Query is satisfied, skip processing the remaining segments
+            blockingQueue.offer(resultsBlock);
+            return;
+          } else {
+            blockingQueue.offer(resultsBlock);
+          }
+        } catch (EarlyTerminationException e) {
+          // Early-terminated by interruption (canceled by the main thread)
+          return;
+        } catch (Exception e) {
+          // Caught exception, skip processing the remaining operators
+          LOGGER
+              .error("Caught exception while executing operator of index: {} (query: {})", operatorIndex, _queryContext,
+                  e);
+          blockingQueue.offer(new IntermediateResultsBlock(e));
+          return;
+        }
+      }
+    } finally {
+      phaser.arriveAndDeregister();
+    }
   }
 
   /**
