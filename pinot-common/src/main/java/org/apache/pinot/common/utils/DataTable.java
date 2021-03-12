@@ -44,6 +44,7 @@ public interface DataTable {
   String REQUEST_ID_METADATA_KEY = "requestId";
   String NUM_RESIZES_METADATA_KEY = "numResizes";
   String RESIZE_TIME_MS_METADATA_KEY = "resizeTimeMs";
+  String THREAD_TIME_MS = "threadTimeMs";
 
   void addException(ProcessingException processingException);
 

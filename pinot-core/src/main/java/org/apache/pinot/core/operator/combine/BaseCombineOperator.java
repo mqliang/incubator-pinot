@@ -26,12 +26,14 @@ import java.util.concurrent.Future;
 import java.util.concurrent.Phaser;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicLong;
 import org.apache.pinot.common.exception.QueryException;
 import org.apache.pinot.core.common.Operator;
 import org.apache.pinot.core.operator.BaseOperator;
 import org.apache.pinot.core.operator.blocks.IntermediateResultsBlock;
 import org.apache.pinot.core.query.exception.EarlyTerminationException;
 import org.apache.pinot.core.query.request.context.QueryContext;
+import org.apache.pinot.core.query.request.context.ThreadTimer;
 import org.apache.pinot.core.util.trace.TraceRunnable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,15 +55,16 @@ public abstract class BaseCombineOperator extends BaseOperator<IntermediateResul
   protected final long _endTimeMs;
 
   protected final int _numOperators;
-  protected int _numThreads;
   // Use a Phaser to ensure all the Futures are done (not scheduled, finished or interrupted) before the main thread
   // returns. We need to ensure this because the main thread holds the reference to the segments. If a segment is
   // deleted/refreshed, the segment will be released after the main thread returns, which would lead to undefined
   // behavior (even JVM crash) when processing queries against it.
   protected final Phaser _phaser = new Phaser(1);
-  protected Future[] _futures;
   // Use a _blockingQueue to store the per-segment result
   private final BlockingQueue<IntermediateResultsBlock> _blockingQueue;
+  private final AtomicLong totalWorkerTime = new AtomicLong(0);
+  protected int _numThreads;
+  protected Future[] _futures;
 
   public BaseCombineOperator(List<Operator> operators, QueryContext queryContext, ExecutorService executorService,
       long endTimeMs) {
@@ -89,12 +92,28 @@ public abstract class BaseCombineOperator extends BaseOperator<IntermediateResul
       _futures[i] = _executorService.submit(new TraceRunnable() {
         @Override
         public void runJob() {
+          ThreadTimer processThreadTimer = new ThreadTimer();
+          processThreadTimer.start();
+
           processSegments(threadIndex);
+
+          processThreadTimer.stop();
+          totalWorkerTime.addAndGet(processThreadTimer.getThreadTime());
         }
       });
     }
 
+    ThreadTimer mergeThreadTimer = new ThreadTimer();
+    mergeThreadTimer.start();
     IntermediateResultsBlock mergedBlock = mergeResultsFromSegments();
+    mergeThreadTimer.stop();
+    totalWorkerTime.addAndGet(mergeThreadTimer.getThreadTime());
+
+    /*
+     * TODO: setThreadTime logic can be put into CombineOperatorUtils.setExecutionStatistics(),
+     *   after we extends StreamingSelectionOnlyCombineOperator from BaseCombineOperator.
+     */
+    mergedBlock.setThreadTime(totalWorkerTime.get());
     CombineOperatorUtils.setExecutionStatistics(mergedBlock, _operators);
     return mergedBlock;
   }

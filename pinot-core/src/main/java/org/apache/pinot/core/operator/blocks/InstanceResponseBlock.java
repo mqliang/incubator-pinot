@@ -41,6 +41,8 @@ public class InstanceResponseBlock implements Block {
   public InstanceResponseBlock(IntermediateResultsBlock intermediateResultsBlock) {
     try {
       _instanceResponseDataTable = intermediateResultsBlock.getDataTable();
+      long totalThreadTime = intermediateResultsBlock.getThreadTime();
+      _instanceResponseDataTable.getMetadata().put(DataTable.THREAD_TIME_MS, String.valueOf(totalThreadTime));
     } catch (Exception e) {
       LOGGER.error("Caught exception while building data table.", e);
       throw new RuntimeException("Caught exception while building data table.", e);

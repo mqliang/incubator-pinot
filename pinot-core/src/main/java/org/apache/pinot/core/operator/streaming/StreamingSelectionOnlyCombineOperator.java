@@ -47,6 +47,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Combine operator for selection only streaming queries.
+ * TODO: extends StreamingSelectionOnlyCombineOperator from BaseCombineOperator.
  */
 @SuppressWarnings({"rawtypes", "unchecked"})
 public class StreamingSelectionOnlyCombineOperator extends BaseOperator<IntermediateResultsBlock> {
