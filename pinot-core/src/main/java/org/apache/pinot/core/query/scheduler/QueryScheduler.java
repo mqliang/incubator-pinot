@@ -187,7 +187,7 @@ public abstract class QueryScheduler {
         Long.parseLong(dataTableMetadata.getOrDefault(DataTable.MIN_CONSUMING_FRESHNESS_TIME_MS, INVALID_FRESHNESS_MS));
     int numResizes = Integer.parseInt(dataTableMetadata.getOrDefault(DataTable.NUM_RESIZES_METADATA_KEY, INVALID_NUM_RESIZES));
     long resizeTimeMs = Long.parseLong(dataTableMetadata.getOrDefault(DataTable.RESIZE_TIME_MS_METADATA_KEY, INVALID_RESIZE_TIME_MS));
-    long threadTimeMs = Long.parseLong(dataTableMetadata.getOrDefault(DataTable.THREAD_TIME_MS, "0"));
+    long threadCpuTimeNs = Long.parseLong(dataTableMetadata.getOrDefault(DataTable.THREAD_CPU_TIME_NS_METADATA_KEY, "0"));
 
     if (numDocsScanned > 0) {
       serverMetrics.addMeteredTableValue(tableNameWithType, ServerMeter.NUM_DOCS_SCANNED, numDocsScanned);
@@ -206,6 +206,9 @@ public abstract class QueryScheduler {
     if (resizeTimeMs > 0) {
       serverMetrics.addMeteredTableValue(tableNameWithType, ServerMeter.RESIZE_TIME_MS, resizeTimeMs);
     }
+    if (threadCpuTimeNs > 0) {
+      serverMetrics.addMeteredTableValue(tableNameWithType, ServerMeter.THREAD_CPU_TIME_NS, threadCpuTimeNs);
+    }
 
     TimerContext timerContext = queryRequest.getTimerContext();
     int numSegmentsQueried = queryRequest.getSegmentsToQuery().size();
@@ -216,14 +219,14 @@ public abstract class QueryScheduler {
     if (queryLogRateLimiter.tryAcquire() || forceLog(schedulerWaitMs, numDocsScanned)) {
       LOGGER.info("Processed requestId={},table={},segments(queried/processed/matched/consuming)={}/{}/{}/{},"
               + "schedulerWaitMs={},reqDeserMs={},totalExecMs={},resSerMs={},totalTimeMs={},minConsumingFreshnessMs={},broker={},"
-              + "numDocsScanned={},scanInFilter={},scanPostFilter={},sched={},threadTimeMs={}", requestId, tableNameWithType,
+              + "numDocsScanned={},scanInFilter={},scanPostFilter={},sched={},threadCpuTimeNs={}", requestId, tableNameWithType,
           numSegmentsQueried, numSegmentsProcessed, numSegmentsMatched, numSegmentsConsuming, schedulerWaitMs,
           timerContext.getPhaseDurationMs(ServerQueryPhase.REQUEST_DESERIALIZATION),
           timerContext.getPhaseDurationMs(ServerQueryPhase.QUERY_PROCESSING),
           timerContext.getPhaseDurationMs(ServerQueryPhase.RESPONSE_SERIALIZATION),
           timerContext.getPhaseDurationMs(ServerQueryPhase.TOTAL_QUERY_TIME), minConsumingFreshnessMs,
           queryRequest.getBrokerId(), numDocsScanned, numEntriesScannedInFilter, numEntriesScannedPostFilter, name(),
-          threadTimeMs);
+          threadCpuTimeNs);
 
       // Limit the dropping log message at most once per second.
       if (numDroppedLogRateLimiter.tryAcquire()) {

@@ -42,6 +42,8 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 
+import static org.apache.pinot.common.utils.CommonConstants.Server.DEFAULT_ENABLE_THREAD_CPU_TIME_INSTRUMENT;
+
 
 /**
  * This test mimic the behavior of combining slow operators, where operation is not done by the timeout. When the
@@ -65,7 +67,8 @@ public class CombineSlowOperatorsTest {
   public void testSelectionOnlyCombineOperator() {
     List<Operator> operators = getOperators();
     SelectionOnlyCombineOperator combineOperator = new SelectionOnlyCombineOperator(operators,
-        QueryContextConverterUtils.getQueryContextFromPQL("SELECT * FROM table"), _executorService, TIMEOUT_MS);
+        QueryContextConverterUtils.getQueryContextFromPQL("SELECT * FROM table"),
+        _executorService, TIMEOUT_MS, DEFAULT_ENABLE_THREAD_CPU_TIME_INSTRUMENT);
     testCombineOperator(operators, combineOperator);
   }
 
@@ -76,7 +79,8 @@ public class CombineSlowOperatorsTest {
   public void testAggregationOnlyCombineOperator() {
     List<Operator> operators = getOperators();
     AggregationOnlyCombineOperator combineOperator = new AggregationOnlyCombineOperator(operators,
-        QueryContextConverterUtils.getQueryContextFromPQL("SELECT COUNT(*) FROM table"), _executorService, TIMEOUT_MS);
+        QueryContextConverterUtils.getQueryContextFromPQL("SELECT COUNT(*) FROM table"), _executorService,
+        TIMEOUT_MS, DEFAULT_ENABLE_THREAD_CPU_TIME_INSTRUMENT);
     testCombineOperator(operators, combineOperator);
   }
 
@@ -85,7 +89,7 @@ public class CombineSlowOperatorsTest {
     List<Operator> operators = getOperators();
     GroupByCombineOperator combineOperator = new GroupByCombineOperator(operators,
         QueryContextConverterUtils.getQueryContextFromPQL("SELECT COUNT(*) FROM table GROUP BY column"),
-        _executorService, TIMEOUT_MS, InstancePlanMakerImplV2.DEFAULT_NUM_GROUPS_LIMIT);
+        _executorService, TIMEOUT_MS, DEFAULT_ENABLE_THREAD_CPU_TIME_INSTRUMENT, InstancePlanMakerImplV2.DEFAULT_NUM_GROUPS_LIMIT);
     testCombineOperator(operators, combineOperator);
   }
 
@@ -94,7 +98,8 @@ public class CombineSlowOperatorsTest {
     List<Operator> operators = getOperators();
     GroupByOrderByCombineOperator combineOperator = new GroupByOrderByCombineOperator(operators,
         QueryContextConverterUtils.getQueryContextFromPQL("SELECT COUNT(*) FROM table GROUP BY column"),
-        _executorService, TIMEOUT_MS, InstancePlanMakerImplV2.DEFAULT_GROUPBY_TRIM_THRESHOLD);
+        _executorService, TIMEOUT_MS, DEFAULT_ENABLE_THREAD_CPU_TIME_INSTRUMENT,
+        InstancePlanMakerImplV2.DEFAULT_GROUPBY_TRIM_THRESHOLD);
     testCombineOperator(operators, combineOperator);
   }
 

@@ -24,38 +24,50 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
+/**
+ * The {@code ThreadTimer} class providing the functionality of measuring the CPU time for the current thread.
+ */
 public class ThreadTimer {
   private static final ThreadMXBean MX_BEAN = ManagementFactory.getThreadMXBean();
-  private static final boolean IS_THREAD_CPU_TIME_SUPPORTED = MX_BEAN.isThreadCpuTimeSupported();
-  private static final long NANOS_IN_MILLIS = 1;
+  private static final boolean IS_CURRENT_THREAD_CPU_TIME_SUPPORTED = MX_BEAN.isCurrentThreadCpuTimeSupported();
   private static final Logger LOGGER = LoggerFactory.getLogger(ThreadTimer.class);
+  private final boolean _enableThreadCpuTimeInstrument;
+  private long _startTimeNs = -1;
+  private long _endTimeNs = -1;
 
-  private long _startTimeMs = -1;
-  private long _endTimeMs = -1;
+  public ThreadTimer(boolean enableThreadCpuTimeInstrument) {
+    _enableThreadCpuTimeInstrument = enableThreadCpuTimeInstrument;
+  }
 
-  public ThreadTimer() {
+  public static boolean isCurrentThreadCpuTimeSupported() {
+    return IS_CURRENT_THREAD_CPU_TIME_SUPPORTED;
   }
 
   public void start() {
-    if (IS_THREAD_CPU_TIME_SUPPORTED) {
-      _startTimeMs = MX_BEAN.getCurrentThreadCpuTime() / NANOS_IN_MILLIS;
+    if (_enableThreadCpuTimeInstrument && IS_CURRENT_THREAD_CPU_TIME_SUPPORTED) {
+      _startTimeNs = MX_BEAN.getCurrentThreadCpuTime();
     }
   }
 
   public void stop() {
-    if (IS_THREAD_CPU_TIME_SUPPORTED) {
-      _endTimeMs = MX_BEAN.getCurrentThreadCpuTime() / NANOS_IN_MILLIS;
+    if (_enableThreadCpuTimeInstrument && IS_CURRENT_THREAD_CPU_TIME_SUPPORTED) {
+      _endTimeNs = MX_BEAN.getCurrentThreadCpuTime();
     }
   }
 
-  public long getThreadTime() {
-    if (_startTimeMs == -1 || _endTimeMs == -1) {
+  public long getThreadTimeNs() {
+    if (_startTimeNs == -1 || _endTimeNs == -1) {
       return 0;
     }
-    return _endTimeMs - _startTimeMs;
+    return _endTimeNs - _startTimeNs;
+  }
+
+  public long stopAndGetThreadTimeNs() {
+    stop();
+    return getThreadTimeNs();
   }
 
   static {
-    LOGGER.info("Thread cpu time measurement supported: {}", IS_THREAD_CPU_TIME_SUPPORTED);
+    LOGGER.info("Current thread cpu time measurement supported: {}", IS_CURRENT_THREAD_CPU_TIME_SUPPORTED);
   }
 }

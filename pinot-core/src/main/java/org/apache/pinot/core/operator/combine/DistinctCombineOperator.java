@@ -37,8 +37,8 @@ public class DistinctCombineOperator extends BaseCombineOperator {
   private final boolean _hasOrderBy;
 
   public DistinctCombineOperator(List<Operator> operators, QueryContext queryContext, ExecutorService executorService,
-      long endTimeMs) {
-    super(operators, queryContext, executorService, endTimeMs);
+      long endTimeMs, boolean enableThreadCpuTimeInstrument) {
+    super(operators, queryContext, executorService, endTimeMs, enableThreadCpuTimeInstrument);
     _hasOrderBy = queryContext.getOrderByExpressions() != null;
   }
 

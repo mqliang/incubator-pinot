@@ -29,6 +29,8 @@ import org.apache.pinot.spi.env.PinotConfiguration;
 import static org.apache.pinot.common.utils.CommonConstants.Server.CONFIG_OF_ALLOWED_TABLES_FOR_EMITTING_METRICS;
 import static org.apache.pinot.common.utils.CommonConstants.Server.CONFIG_OF_ENABLE_TABLE_LEVEL_METRICS;
 import static org.apache.pinot.common.utils.CommonConstants.Server.DEFAULT_ENABLE_TABLE_LEVEL_METRICS;
+import static org.apache.pinot.common.utils.CommonConstants.Server.CONFIG_OF_ENABLE_THREAD_CPU_TIME_INSTRUMENT;
+import static org.apache.pinot.common.utils.CommonConstants.Server.DEFAULT_ENABLE_THREAD_CPU_TIME_INSTRUMENT;
 
 
 /**
@@ -136,5 +138,10 @@ public class ServerConf {
 
   public PinotConfiguration getPinotConfig() {
     return _serverConf;
+  }
+
+  public boolean instrumentThreadCpuTime() {
+    return _serverConf.getProperty(CONFIG_OF_ENABLE_THREAD_CPU_TIME_INSTRUMENT,
+        DEFAULT_ENABLE_THREAD_CPU_TIME_INSTRUMENT);
   }
 }

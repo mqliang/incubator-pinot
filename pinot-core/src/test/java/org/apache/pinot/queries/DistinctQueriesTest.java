@@ -1013,10 +1013,12 @@ public class DistinctQueriesTest extends BaseQueriesTest {
     // Server side
     DataTable instanceResponse0 = PLAN_MAKER
         .makeInstancePlan(Arrays.asList(segment0, segment0), queryContext, EXECUTOR_SERVICE,
-            System.currentTimeMillis() + Server.DEFAULT_QUERY_EXECUTOR_TIMEOUT_MS).execute();
+            System.currentTimeMillis() + Server.DEFAULT_QUERY_EXECUTOR_TIMEOUT_MS,
+            Server.DEFAULT_ENABLE_THREAD_CPU_TIME_INSTRUMENT).execute();
     DataTable instanceResponse1 = PLAN_MAKER
         .makeInstancePlan(Arrays.asList(segment1, segment1), queryContext, EXECUTOR_SERVICE,
-            System.currentTimeMillis() + Server.DEFAULT_QUERY_EXECUTOR_TIMEOUT_MS).execute();
+            System.currentTimeMillis() + Server.DEFAULT_QUERY_EXECUTOR_TIMEOUT_MS,
+            Server.DEFAULT_ENABLE_THREAD_CPU_TIME_INSTRUMENT).execute();
 
     // Broker side
     Map<String, Object> properties = new HashMap<>();

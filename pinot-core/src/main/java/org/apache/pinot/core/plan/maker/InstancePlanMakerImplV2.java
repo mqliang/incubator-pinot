@@ -111,14 +111,14 @@ public class InstancePlanMakerImplV2 implements PlanMaker {
 
   @Override
   public Plan makeInstancePlan(List<IndexSegment> indexSegments, QueryContext queryContext,
-      ExecutorService executorService, long endTimeMs) {
+      ExecutorService executorService, long endTimeMs, boolean enableThreadCpuTimeInstrument) {
     List<PlanNode> planNodes = new ArrayList<>(indexSegments.size());
     for (IndexSegment indexSegment : indexSegments) {
       planNodes.add(makeSegmentPlanNode(indexSegment, queryContext));
     }
     CombinePlanNode combinePlanNode =
         new CombinePlanNode(planNodes, queryContext, executorService, endTimeMs, _numGroupsLimit, null,
-            _groupByTrimThreshold);
+            _groupByTrimThreshold, enableThreadCpuTimeInstrument);
     return new GlobalPlanImplV0(new InstanceResponsePlanNode(combinePlanNode));
   }
 
@@ -160,14 +160,15 @@ public class InstancePlanMakerImplV2 implements PlanMaker {
 
   @Override
   public Plan makeStreamingInstancePlan(List<IndexSegment> indexSegments, QueryContext queryContext,
-      ExecutorService executorService, StreamObserver<Server.ServerResponse> streamObserver, long endTimeMs) {
+      ExecutorService executorService, StreamObserver<Server.ServerResponse> streamObserver, long endTimeMs,
+      boolean enableThreadCpuTimeInstrument) {
     List<PlanNode> planNodes = new ArrayList<>(indexSegments.size());
     for (IndexSegment indexSegment : indexSegments) {
       planNodes.add(makeStreamingSegmentPlanNode(indexSegment, queryContext));
     }
     CombinePlanNode combinePlanNode =
         new CombinePlanNode(planNodes, queryContext, executorService, endTimeMs, _numGroupsLimit, streamObserver,
-            _groupByTrimThreshold);
+            _groupByTrimThreshold, enableThreadCpuTimeInstrument);
     return new GlobalPlanImplV0(new InstanceResponsePlanNode(combinePlanNode));
   }
 

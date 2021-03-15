@@ -64,6 +64,7 @@ public class CombinePlanNode implements PlanNode {
   private final StreamObserver<Server.ServerResponse> _streamObserver;
   // used for SQL GROUP BY during server combine
   private final int _groupByTrimThreshold;
+  private final boolean _enableThreadCpuTimeInstrument;
 
   /**
    * Constructor for the class.
@@ -75,10 +76,11 @@ public class CombinePlanNode implements PlanNode {
    * @param numGroupsLimit Limit of number of groups stored in each segment
    * @param streamObserver Optional stream observer for streaming query
    * @param groupByTrimThreshold trim threshold to use for server combine for SQL GROUP BY
+   * @param enableThreadCpuTimeInstrument enable thread CPU time instrument
    */
   public CombinePlanNode(List<PlanNode> planNodes, QueryContext queryContext, ExecutorService executorService,
       long endTimeMs, int numGroupsLimit, @Nullable StreamObserver<Server.ServerResponse> streamObserver,
-      int groupByTrimThreshold) {
+      int groupByTrimThreshold, boolean enableThreadCpuTimeInstrument) {
     _planNodes = planNodes;
     _queryContext = queryContext;
     _executorService = executorService;
@@ -86,6 +88,7 @@ public class CombinePlanNode implements PlanNode {
     _numGroupsLimit = numGroupsLimit;
     _streamObserver = streamObserver;
     _groupByTrimThreshold = groupByTrimThreshold;
+    _enableThreadCpuTimeInstrument = enableThreadCpuTimeInstrument;
   }
 
   @SuppressWarnings({"rawtypes", "unchecked"})
@@ -176,27 +179,31 @@ public class CombinePlanNode implements PlanNode {
     if (QueryContextUtils.isAggregationQuery(_queryContext)) {
       if (_queryContext.getGroupByExpressions() == null) {
         // Aggregation only
-        return new AggregationOnlyCombineOperator(operators, _queryContext, _executorService, _endTimeMs);
+        return new AggregationOnlyCombineOperator(operators, _queryContext, _executorService, _endTimeMs, _enableThreadCpuTimeInstrument);
       } else {
         // Aggregation group-by
         QueryOptions queryOptions = new QueryOptions(_queryContext.getQueryOptions());
         if (queryOptions.isGroupByModeSQL()) {
           return new GroupByOrderByCombineOperator(operators, _queryContext, _executorService, _endTimeMs,
-              _groupByTrimThreshold);
+              _enableThreadCpuTimeInstrument, _groupByTrimThreshold);
         }
-        return new GroupByCombineOperator(operators, _queryContext, _executorService, _endTimeMs, _numGroupsLimit);
+        return new GroupByCombineOperator(operators, _queryContext, _executorService, _endTimeMs, _enableThreadCpuTimeInstrument,
+            _numGroupsLimit);
       }
     } else if (QueryContextUtils.isSelectionQuery(_queryContext)) {
       if (_queryContext.getLimit() == 0 || _queryContext.getOrderByExpressions() == null) {
         // Selection only
-        return new SelectionOnlyCombineOperator(operators, _queryContext, _executorService, _endTimeMs);
+        return new SelectionOnlyCombineOperator(operators, _queryContext, _executorService, _endTimeMs,
+            _enableThreadCpuTimeInstrument);
       } else {
         // Selection order-by
-        return new SelectionOrderByCombineOperator(operators, _queryContext, _executorService, _endTimeMs);
+        return new SelectionOrderByCombineOperator(operators, _queryContext, _executorService, _endTimeMs,
+            _enableThreadCpuTimeInstrument);
       }
     } else {
       assert QueryContextUtils.isDistinctQuery(_queryContext);
-      return new DistinctCombineOperator(operators, _queryContext, _executorService, _endTimeMs);
+      return new DistinctCombineOperator(operators, _queryContext, _executorService, _endTimeMs,
+          _enableThreadCpuTimeInstrument);
     }
   }
 }

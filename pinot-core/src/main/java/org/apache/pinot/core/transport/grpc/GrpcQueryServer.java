@@ -49,6 +49,7 @@ public class GrpcQueryServer extends PinotQueryServerGrpc.PinotQueryServerImplBa
   private final ExecutorService _executorService =
       Executors.newFixedThreadPool(ResourceManager.DEFAULT_QUERY_WORKER_THREADS);
 
+
   public GrpcQueryServer(int port, QueryExecutor queryExecutor, ServerMetrics serverMetrics) {
     _queryExecutor = queryExecutor;
     _serverMetrics = serverMetrics;

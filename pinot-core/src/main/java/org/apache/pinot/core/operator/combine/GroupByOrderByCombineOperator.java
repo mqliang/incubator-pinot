@@ -78,8 +78,8 @@ public class GroupByOrderByCombineOperator extends BaseCombineOperator {
   private ConcurrentIndexedTable _indexedTable;
 
   public GroupByOrderByCombineOperator(List<Operator> operators, QueryContext queryContext,
-      ExecutorService executorService, long endTimeMs, int trimThreshold) {
-    super(operators, queryContext, executorService, endTimeMs, operators.size());
+      ExecutorService executorService, long endTimeMs, boolean enableThreadCpuTimeInstrument, int trimThreshold) {
+    super(operators, queryContext, executorService, endTimeMs, enableThreadCpuTimeInstrument, operators.size());
     _initLock = new ReentrantLock();
     _trimSize = GroupByUtils.getTableCapacity(_queryContext);
     _trimThreshold = trimThreshold;

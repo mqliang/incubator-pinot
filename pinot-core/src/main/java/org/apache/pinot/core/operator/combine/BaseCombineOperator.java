@@ -53,6 +53,7 @@ public abstract class BaseCombineOperator extends BaseOperator<IntermediateResul
   protected final QueryContext _queryContext;
   protected final ExecutorService _executorService;
   protected final long _endTimeMs;
+  protected final boolean _enableThreadCpuTimeInstrument;
 
   protected final int _numOperators;
   // Use a Phaser to ensure all the Futures are done (not scheduled, finished or interrupted) before the main thread
@@ -62,16 +63,17 @@ public abstract class BaseCombineOperator extends BaseOperator<IntermediateResul
   protected final Phaser _phaser = new Phaser(1);
   // Use a _blockingQueue to store the per-segment result
   private final BlockingQueue<IntermediateResultsBlock> _blockingQueue;
-  private final AtomicLong totalWorkerTime = new AtomicLong(0);
+  private final AtomicLong totalWorkerThreadCpuTimeNs = new AtomicLong(0);
   protected int _numThreads;
   protected Future[] _futures;
 
   public BaseCombineOperator(List<Operator> operators, QueryContext queryContext, ExecutorService executorService,
-      long endTimeMs) {
+      long endTimeMs, boolean enableThreadCpuTimeInstrument) {
     _operators = operators;
     _queryContext = queryContext;
     _executorService = executorService;
     _endTimeMs = endTimeMs;
+    _enableThreadCpuTimeInstrument = enableThreadCpuTimeInstrument;
     _numOperators = _operators.size();
     _numThreads = CombineOperatorUtils.getNumThreadsForQuery(_numOperators);
     _blockingQueue = new ArrayBlockingQueue<>(_numOperators);
@@ -79,8 +81,8 @@ public abstract class BaseCombineOperator extends BaseOperator<IntermediateResul
   }
 
   public BaseCombineOperator(List<Operator> operators, QueryContext queryContext, ExecutorService executorService,
-      long endTimeMs, int numThreads) {
-    this(operators, queryContext, executorService, endTimeMs);
+      long endTimeMs, boolean enableThreadCpuTimeInstrument, int numThreads) {
+    this(operators, queryContext, executorService, endTimeMs, enableThreadCpuTimeInstrument);
     _numThreads = numThreads;
     _futures = new Future[_numThreads];
   }
@@ -92,28 +94,26 @@ public abstract class BaseCombineOperator extends BaseOperator<IntermediateResul
       _futures[i] = _executorService.submit(new TraceRunnable() {
         @Override
         public void runJob() {
-          ThreadTimer processThreadTimer = new ThreadTimer();
-          processThreadTimer.start();
+          ThreadTimer executionThreadTimer = new ThreadTimer(_enableThreadCpuTimeInstrument);
+          executionThreadTimer.start();
 
           processSegments(threadIndex);
 
-          processThreadTimer.stop();
-          totalWorkerTime.addAndGet(processThreadTimer.getThreadTime());
+          totalWorkerThreadCpuTimeNs.addAndGet(executionThreadTimer.stopAndGetThreadTimeNs());
         }
       });
     }
 
-    ThreadTimer mergeThreadTimer = new ThreadTimer();
+    ThreadTimer mergeThreadTimer = new ThreadTimer(_enableThreadCpuTimeInstrument);
     mergeThreadTimer.start();
     IntermediateResultsBlock mergedBlock = mergeResultsFromSegments();
-    mergeThreadTimer.stop();
-    totalWorkerTime.addAndGet(mergeThreadTimer.getThreadTime());
+    totalWorkerThreadCpuTimeNs.addAndGet(mergeThreadTimer.stopAndGetThreadTimeNs());
 
     /*
      * TODO: setThreadTime logic can be put into CombineOperatorUtils.setExecutionStatistics(),
      *   after we extends StreamingSelectionOnlyCombineOperator from BaseCombineOperator.
      */
-    mergedBlock.setThreadTime(totalWorkerTime.get());
+    mergedBlock.setThreadCpuTimeNs(totalWorkerThreadCpuTimeNs.get());
     CombineOperatorUtils.setExecutionStatistics(mergedBlock, _operators);
     return mergedBlock;
   }

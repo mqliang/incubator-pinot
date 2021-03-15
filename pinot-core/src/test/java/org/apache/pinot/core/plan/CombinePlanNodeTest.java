@@ -59,7 +59,7 @@ public class CombinePlanNodeTest {
       CombinePlanNode combinePlanNode = new CombinePlanNode(planNodes, _queryContext, _executorService,
           System.currentTimeMillis() + Server.DEFAULT_QUERY_EXECUTOR_TIMEOUT_MS,
           InstancePlanMakerImplV2.DEFAULT_NUM_GROUPS_LIMIT, null,
-          InstancePlanMakerImplV2.DEFAULT_GROUPBY_TRIM_THRESHOLD);
+          InstancePlanMakerImplV2.DEFAULT_GROUPBY_TRIM_THRESHOLD, Server.DEFAULT_ENABLE_THREAD_CPU_TIME_INSTRUMENT);
       combinePlanNode.run();
       Assert.assertEquals(numPlans, count.get());
     }
@@ -85,7 +85,7 @@ public class CombinePlanNodeTest {
     CombinePlanNode combinePlanNode =
         new CombinePlanNode(planNodes, _queryContext, _executorService, System.currentTimeMillis() + 100,
             InstancePlanMakerImplV2.DEFAULT_NUM_GROUPS_LIMIT, null,
-            InstancePlanMakerImplV2.DEFAULT_GROUPBY_TRIM_THRESHOLD);
+            InstancePlanMakerImplV2.DEFAULT_GROUPBY_TRIM_THRESHOLD, Server.DEFAULT_ENABLE_THREAD_CPU_TIME_INSTRUMENT);
     try {
       combinePlanNode.run();
     } catch (RuntimeException e) {
@@ -108,7 +108,7 @@ public class CombinePlanNodeTest {
     CombinePlanNode combinePlanNode = new CombinePlanNode(planNodes, _queryContext, _executorService,
         System.currentTimeMillis() + Server.DEFAULT_QUERY_EXECUTOR_TIMEOUT_MS,
         InstancePlanMakerImplV2.DEFAULT_NUM_GROUPS_LIMIT, null,
-        InstancePlanMakerImplV2.DEFAULT_GROUPBY_TRIM_THRESHOLD);
+        InstancePlanMakerImplV2.DEFAULT_GROUPBY_TRIM_THRESHOLD, Server.DEFAULT_ENABLE_THREAD_CPU_TIME_INSTRUMENT);
     try {
       combinePlanNode.run();
     } catch (RuntimeException e) {

@@ -39,7 +39,7 @@ public interface PlanMaker {
    * Returns an instance level {@link Plan} which contains the logical execution plan for multiple segments.
    */
   Plan makeInstancePlan(List<IndexSegment> indexSegments, QueryContext queryContext, ExecutorService executorService,
-      long endTimeMs);
+      long endTimeMs, boolean enableThreadCpuTimeInstrument);
 
   /**
    * Returns a segment level {@link PlanNode} which contains the logical execution plan for one segment.
@@ -51,7 +51,8 @@ public interface PlanMaker {
    * segments.
    */
   Plan makeStreamingInstancePlan(List<IndexSegment> indexSegments, QueryContext queryContext,
-      ExecutorService executorService, StreamObserver<Server.ServerResponse> streamObserver, long endTimeMs);
+      ExecutorService executorService, StreamObserver<Server.ServerResponse> streamObserver, long endTimeMs,
+      boolean enableThreadCpuTimeInstrument);
 
   /**
    * Returns a segment level {@link PlanNode} for a streaming query which contains the logical execution plan for one

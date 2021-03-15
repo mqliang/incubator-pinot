@@ -65,6 +65,7 @@ public enum ServerMeter implements AbstractMetrics.Meter {
   SEGMENT_DOWNLOAD_FAILURES("segments", false),
   NUM_RESIZES("numResizes", false),
   RESIZE_TIME_MS("resizeTimeMs", false),
+  THREAD_CPU_TIME_NS("threadCpuTimeNs", false),
 
   // Netty connection metrics
   NETTY_CONNECTION_BYTES_RECEIVED("nettyConnection", true),

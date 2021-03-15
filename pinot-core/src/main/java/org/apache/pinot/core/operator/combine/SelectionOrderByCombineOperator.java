@@ -69,8 +69,8 @@ public class SelectionOrderByCombineOperator extends BaseCombineOperator {
   private final int _numRowsToKeep;
 
   public SelectionOrderByCombineOperator(List<Operator> operators, QueryContext queryContext,
-      ExecutorService executorService, long endTimeMs) {
-    super(operators, queryContext, executorService, endTimeMs);
+      ExecutorService executorService, long endTimeMs, boolean enableThreadCpuTimeInstrument) {
+    super(operators, queryContext, executorService, endTimeMs, enableThreadCpuTimeInstrument);
     _numRowsToKeep = queryContext.getLimit() + queryContext.getOffset();
   }
 

@@ -66,6 +66,9 @@ import org.apache.pinot.spi.env.PinotConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static org.apache.pinot.common.utils.CommonConstants.Server.CONFIG_OF_ENABLE_THREAD_CPU_TIME_INSTRUMENT;
+import static org.apache.pinot.common.utils.CommonConstants.Server.DEFAULT_ENABLE_THREAD_CPU_TIME_INSTRUMENT;
+
 
 @ThreadSafe
 public class ServerQueryExecutorV1Impl implements QueryExecutor {
@@ -77,6 +80,7 @@ public class ServerQueryExecutorV1Impl implements QueryExecutor {
   private PlanMaker _planMaker;
   private long _defaultTimeOutMs = CommonConstants.Server.DEFAULT_QUERY_EXECUTOR_TIMEOUT_MS;
   private ServerMetrics _serverMetrics;
+  boolean _enableThreadCpuTimeInstrument;
 
   @Override
   public synchronized void init(PinotConfiguration config, InstanceDataManager instanceDataManager,
@@ -88,6 +92,8 @@ public class ServerQueryExecutorV1Impl implements QueryExecutor {
     if (queryExecutorConfig.getTimeOut() > 0) {
       _defaultTimeOutMs = queryExecutorConfig.getTimeOut();
     }
+    _enableThreadCpuTimeInstrument = config.getProperty(CONFIG_OF_ENABLE_THREAD_CPU_TIME_INSTRUMENT,
+        DEFAULT_ENABLE_THREAD_CPU_TIME_INSTRUMENT);
     LOGGER.info("Default timeout for query executor : {}", _defaultTimeOutMs);
     LOGGER.info("Trying to build SegmentPrunerService");
     _segmentPrunerService = new SegmentPrunerService(queryExecutorConfig.getPrunerConfig());
@@ -286,8 +292,10 @@ public class ServerQueryExecutorV1Impl implements QueryExecutor {
     } else {
       TimerContext.Timer planBuildTimer = timerContext.startNewPhaseTimer(ServerQueryPhase.BUILD_QUERY_PLAN);
       Plan queryPlan = enableStreaming ? _planMaker
-          .makeStreamingInstancePlan(selectedSegments, queryContext, executorService, responseObserver, endTimeMs)
-          : _planMaker.makeInstancePlan(selectedSegments, queryContext, executorService, endTimeMs);
+          .makeStreamingInstancePlan(selectedSegments, queryContext, executorService, responseObserver, endTimeMs,
+              _enableThreadCpuTimeInstrument)
+          : _planMaker.makeInstancePlan(selectedSegments, queryContext, executorService, endTimeMs,
+              _enableThreadCpuTimeInstrument);
       planBuildTimer.stopAndRecord();
 
       TimerContext.Timer planExecTimer = timerContext.startNewPhaseTimer(ServerQueryPhase.QUERY_PLAN_EXECUTION);

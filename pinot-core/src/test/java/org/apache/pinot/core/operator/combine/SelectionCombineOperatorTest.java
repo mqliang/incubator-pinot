@@ -231,7 +231,7 @@ public class SelectionCombineOperatorTest {
     CombinePlanNode combinePlanNode = new CombinePlanNode(planNodes, queryContext, EXECUTOR,
         System.currentTimeMillis() + Server.DEFAULT_QUERY_EXECUTOR_TIMEOUT_MS,
         InstancePlanMakerImplV2.DEFAULT_NUM_GROUPS_LIMIT, null,
-        InstancePlanMakerImplV2.DEFAULT_GROUPBY_TRIM_THRESHOLD);
+        InstancePlanMakerImplV2.DEFAULT_GROUPBY_TRIM_THRESHOLD, Server.DEFAULT_ENABLE_THREAD_CPU_TIME_INSTRUMENT);
     return combinePlanNode.run().nextBlock();
   }
 

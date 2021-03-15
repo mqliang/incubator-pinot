@@ -78,8 +78,8 @@ public class GroupByCombineOperator extends BaseCombineOperator {
   private final CountDownLatch _operatorLatch;
 
   public GroupByCombineOperator(List<Operator> operators, QueryContext queryContext, ExecutorService executorService,
-      long endTimeMs, int innerSegmentNumGroupsLimit) {
-    super(operators, queryContext, executorService, endTimeMs, operators.size());
+      long endTimeMs, boolean enableThreadCpuTimeInstrument, int innerSegmentNumGroupsLimit) {
+    super(operators, queryContext, executorService, endTimeMs, enableThreadCpuTimeInstrument, operators.size());
     _innerSegmentNumGroupsLimit = innerSegmentNumGroupsLimit;
     _interSegmentNumGroupsLimit =
         (int) Math.min((long) innerSegmentNumGroupsLimit * INTER_SEGMENT_NUM_GROUPS_LIMIT_FACTOR, Integer.MAX_VALUE);
